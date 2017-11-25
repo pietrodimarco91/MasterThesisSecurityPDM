@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="jsqlparser-0.8.9">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/Downloads/Archive-6/Custom Interceptor/CustomInterceptor/jsqlparser-0.8.9.jar!/" />
+      <root url="jar://$USER_HOME$/Downloads/Archive-6/Custom Interceptor/CustomInterceptor/mysql-connector-java-5.1.30-bin.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

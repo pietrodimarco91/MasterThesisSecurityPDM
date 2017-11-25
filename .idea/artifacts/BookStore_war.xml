@@ -1,0 +1,13 @@
+<component name="ArtifactManager">
+  <artifact type="war" name="BookStore:war">
+    <output-path>$PROJECT_DIR$/target</output-path>
+    <root id="archive" name="BookStore.war">
+      <element id="artifact" artifact-name="BookStore:war exploded" />
+      <element id="directory" name="WEB-INF">
+        <element id="directory" name="lib">
+          <element id="library" level="project" name="jsqlparser-0.8.9" />
+        </element>
+      </element>
+    </root>
+  </artifact>
+</component>

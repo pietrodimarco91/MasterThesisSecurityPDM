@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<table_list schema="bookstore">
+	<table name="simple_test">
+		<columns>id,firstname,lastname,A,B,C,D,E,F,G</columns>
+		<relation_view kind="simple" name="every">
+			<user_role>1</user_role>
+			<begin_date>2015-03-22 19:00:00</begin_date>
+			<expiration>2020-04-24 18:59:59</expiration>
+			<permission></permission>
+			<policy>select id,firstname,lastname,A,B,C,D,E,F,G from simple_test </policy>
+		</relation_view>
+	</table>
+</table_list>
