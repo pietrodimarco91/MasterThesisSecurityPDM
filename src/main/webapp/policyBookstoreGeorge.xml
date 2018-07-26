@@ -1,13 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <table_list schema="bookstore">
-	<table name="simple_test">
-		<columns>id,firstname,lastname,A,B,C,D,E,F,G</columns>
+	<table name="addre">
+		<columns>SSN,STREET_NAME,ZIP,ENAME,DEP_NAME,SALARY</columns>
 		<relation_view kind="simple" name="every">
 			<user_role>1</user_role>
 			<begin_date>2015-03-22 19:00:00</begin_date>
 			<expiration>2020-04-24 18:59:59</expiration>
 			<permission></permission>
-			<policy>select id,firstname,lastname,A,B,C,D,E,F,G from simple_test </policy>
+			<columns_join table="employee">SSN,ENAME,DEP_NAME,SALARY</columns_join>
+			<columns_join table="address">SSN,STREET_NAME,ZIP</columns_join>
+			<policy>SELECT SSN,STREET_NAME,ZIP,ENAME,SALARY FROM EMPLOYEE JOIN ADDRESS ON EMPLOYEE.SSN = ADDRESS.SSN  WHERE employee.salary &gt; 900 and employee.SSN &lt; 900000</policy>
 		</relation_view>
+
 	</table>
+
+
 </table_list>

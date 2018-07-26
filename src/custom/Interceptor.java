@@ -22,7 +22,7 @@ import com.mysql.jdbc.Statement;
  * @author paolobruzzo
  *
  */
-public class Interceptor implements com.mysql.jdbc.StatementInterceptorV2 {
+public class Interceptor implements com.mysql.jdbc.StatementInterceptor {
 
 	/*
 	 * ==================================== 
@@ -77,7 +77,6 @@ public class Interceptor implements com.mysql.jdbc.StatementInterceptorV2 {
 	
 	@Override
 	public ResultSetInternalMethods preProcess(String stringSQL, Statement stmnt, Connection cnctn) throws SQLException {
-		
 		stringSQL = editEscapingCharactersInQuery(stringSQL);
 
 		if (isFilterPaused())
@@ -85,14 +84,16 @@ public class Interceptor implements com.mysql.jdbc.StatementInterceptorV2 {
 
 		CCJSqlParserManager pm = new CCJSqlParserManager();
 		net.sf.jsqlparser.statement.Statement statement;
+
 		try {
 			statement = pm.parse(new StringReader(stringSQL));
 			ViewCreator viewCreator = new ViewCreator();
 
 			if (statement instanceof Select) {
 				Select selectStatement = (Select) statement;
+
 				viewCreator.getTableList(selectStatement);
-				
+
 				System.out.println("-------------------------------------------------------------");
 				System.out.println("Original Query: " + stringSQL);
 				System.out.println("Modified Query: " + selectStatement.toString());
@@ -107,7 +108,11 @@ public class Interceptor implements com.mysql.jdbc.StatementInterceptorV2 {
 		} catch (JSQLParserException e) {
 			//System.out.println("Wrong SQL query string : " + stringSQL);
 		}
+		return null;
+	}
 
+	@Override
+	public ResultSetInternalMethods postProcess(String s, Statement statement, ResultSetInternalMethods resultSetInternalMethods, Connection connection) throws SQLException {
 		return null;
 	}
 
@@ -118,12 +123,6 @@ public class Interceptor implements com.mysql.jdbc.StatementInterceptorV2 {
 
 	@Override
 	public void destroy() {
-	}
-
-	@Override
-	public ResultSetInternalMethods postProcess(String stringSQL, Statement stmnt, ResultSetInternalMethods rsim, Connection cnctn, int i,
-			boolean bln, boolean bln1, SQLException sqle) throws SQLException {
-		return null;
 	}
 
 }

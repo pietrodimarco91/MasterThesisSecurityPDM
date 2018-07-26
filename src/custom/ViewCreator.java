@@ -1,5 +1,7 @@
 package custom;
 
+import custom.utils.MyUtils;
+import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.expression.*;
 import net.sf.jsqlparser.expression.operators.arithmetic.*;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
@@ -188,7 +190,7 @@ public class ViewCreator implements SelectVisitor, FromItemVisitor, ExpressionVi
 	public List<String> getTableList(Update update) {
 		init();
 
-		Table table = update.getTable();
+		Table table = update.getTables().get(0);
 		tables.add(table.getName());
 
 		if (update.getExpressions() != null) {
@@ -253,7 +255,31 @@ public class ViewCreator implements SelectVisitor, FromItemVisitor, ExpressionVi
 					// Keywords replacement
 					replacementView = replaceKeywords(replacementView);
 
-					Table newTable = new Table("( " + replacementView + " )");
+
+
+					if(replacementView.contains("JOIN")){
+						for(int i=0;i<rview.getJoinTables().size();i++)
+							if(rview.getJoinTables().get(i).tableName.equals(originalTable.getName())){
+								String supp="";
+								for(int x=0;x<rview.getJoinTables().get(i).columns.length;x++){
+									try {
+										for (int k = 0; k < rview.getSelectItemsList().size(); k++)
+											if (rview.getSelectItemsList().get(k).contains(rview.getJoinTables().get(i).columns[x]) && !rview.getSelectItemsList().get(k).contains("NULL") )
+												if(!suppContain(supp,rview.getJoinTables().get(i).columns[x]))
+													supp = supp + " " + rview.getJoinTables().get(i).columns[x] + ",";
+
+									} catch (JSQLParserException e) {
+									e.printStackTrace();
+								}
+								}
+								supp=supp.substring(0,supp.length()-1);
+								replacementView="( SELECT "+supp+" FROM ("+ replacementView+") AS "+originalTable.getName()+" )";
+							}
+					}else
+						replacementView="( " + replacementView + " )";
+
+
+					Table newTable = new Table(replacementView);
 
 					/* This puts the alias at the end of the view.
 					 * Ex: (select * from members) AS members */
@@ -261,7 +287,6 @@ public class ViewCreator implements SelectVisitor, FromItemVisitor, ExpressionVi
 						newTable.setAlias(new Alias(originalTable.getName()));
 					else
 						newTable.setAlias(originalTable.getAlias());
-
 					return newTable;
 				}
 			}
@@ -270,9 +295,41 @@ public class ViewCreator implements SelectVisitor, FromItemVisitor, ExpressionVi
 		return originalTable;
 	}
 
+	private boolean suppContain(String supp, String column) {
+		return supp.contains(column);
+	}
+
+	/**
+	 * Query the attributes for the original table, the view will be mapped on them
+	 * @param replacementView
+	 * @param name
+	 */
+	private String getOriginalAtt(String replacementView, String name) {
+		return "SELECT  GROUP_CONCAT(DISTINCT " +
+				"CONCAT('MAX(CASE WHEN b.COLUMN_NAME = ''', " +
+				"b.COLUMN_NAME, " +
+				"''' THEN a.',b.COLUMN_NAME,' END) AS ', " +
+				"b.COLUMN_NAME)" +
+				") INTO @sql " +
+				"FROM " +
+				"("+replacementView+") as a , " +
+				"(SELECT `COLUMN_NAME` " +
+				"FROM `INFORMATION_SCHEMA`.`COLUMNS` " +
+				"WHERE `TABLE_SCHEMA`='bookstore' AND `TABLE_NAME`='"+name+"') as b; " +
+				"SET @sql = CONCAT('SELECT   ',@sql,' " +
+				"FROM    ("+replacementView+") as a , " +
+				"(SELECT `COLUMN_NAME` " +
+				"FROM `INFORMATION_SCHEMA`.`COLUMNS` " +
+				"WHERE `TABLE_SCHEMA`=''bookstore'' AND `TABLE_NAME`=''"+name+"'') as b " +
+				"GROUP BY a.ssn'); " +
+				"PREPARE stmt FROM @sql; " +
+				"EXECUTE stmt; " +
+				"DEALLOCATE PREPARE stmt";
+	}
+
 	/*
 	 * ============================================================================================ 
-	 * OVVERIDES VISIT METHODS FOR THE PARSER
+	 * OVERIDES VISIT METHODS FOR THE PARSER
 	 * ============================================================================================ 
 	 */
 
@@ -284,11 +341,21 @@ public class ViewCreator implements SelectVisitor, FromItemVisitor, ExpressionVi
 		if (plainSelect.getJoins() != null) {
 			for (Join join : plainSelect.getJoins()) {
 				join.getRightItem().accept(this);
+
 			}
+			modifyOn(plainSelect.getJoins().get(plainSelect.getJoins().size()-1));
+
 		}
 		if (plainSelect.getWhere() != null) {
 			plainSelect.getWhere().accept(this);
 		}
+
+	}
+
+	private void modifyOn(Join onExpression) {
+		onExpression.getOnExpression().accept(this);
+
+
 
 	}
 
@@ -415,6 +482,12 @@ public class ViewCreator implements SelectVisitor, FromItemVisitor, ExpressionVi
 	public void visit(LongValue longValue) {
 		//System.out.println("	*** JSqlParser has visited longValue: " + longValue);
 	}
+
+	@Override
+	public void visit(HexValue hexValue) {
+
+	}
+
 
 	@Override
 	public void visit(MinorThan minorThan) {
@@ -574,10 +647,15 @@ public class ViewCreator implements SelectVisitor, FromItemVisitor, ExpressionVi
 	}
 
 	@Override
+	public void visit(WithinGroupExpression withinGroupExpression) {
+
+	}
+
+	@Override
 	public void visit(SetOperationList list) {
 		//System.out.println("	*** JSqlParser has visited list: " + list);
-		for (PlainSelect plainSelect : list.getPlainSelects()) {
-			visit(plainSelect);
+		for (SelectBody plainSelect : list.getSelects()) {
+			visit((PlainSelect) plainSelect);
 		}
 	}
 
@@ -606,6 +684,12 @@ public class ViewCreator implements SelectVisitor, FromItemVisitor, ExpressionVi
 	}
 
 	@Override
+	public void visit(TableFunction tableFunction) {
+
+	}
+
+
+	@Override
 	public void visit(IntervalExpression iexpr) {
 		//System.out.println("	*** JSqlParser has visited iexpr: " + iexpr);
 	}
@@ -625,5 +709,66 @@ public class ViewCreator implements SelectVisitor, FromItemVisitor, ExpressionVi
 		//System.out.println("	*** JSqlParser has visited rexpr: " + rexpr);
 		visitBinaryExpression(rexpr);
 	}
+
+	@Override
+	public void visit(JsonExpression jsonExpression) {
+
+	}
+
+	@Override
+	public void visit(JsonOperator jsonOperator) {
+
+	}
+
+	@Override
+	public void visit(RegExpMySQLOperator regExpMySQLOperator) {
+
+	}
+
+	@Override
+	public void visit(UserVariable userVariable) {
+
+	}
+
+	@Override
+	public void visit(NumericBind numericBind) {
+
+	}
+
+	@Override
+	public void visit(KeepExpression keepExpression) {
+
+	}
+
+	@Override
+	public void visit(MySQLGroupConcat mySQLGroupConcat) {
+
+	}
+
+	@Override
+	public void visit(RowConstructor rowConstructor) {
+
+	}
+
+	@Override
+	public void visit(OracleHint oracleHint) {
+
+	}
+
+	@Override
+	public void visit(TimeKeyExpression timeKeyExpression) {
+
+	}
+
+	@Override
+	public void visit(DateTimeLiteralExpression dateTimeLiteralExpression) {
+
+	}
+
+	@Override
+	public void visit(NotExpression notExpression) {
+
+	}
+
 
 }

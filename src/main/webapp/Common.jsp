@@ -21,7 +21,7 @@
   static final String DBDriver  ="com.mysql.jdbc.Driver";
   static final String strConn   ="jdbc:mysql://localhost:3306/bookstore?statementInterceptors=custom.Interceptor";
   static final String DBusername="root";
-  static final String DBpassword="root";
+  static final String DBpassword="Superitalo91";
 
   public static String loadDriver () {
     String sErr = "";
@@ -102,6 +102,8 @@
   }
 
   java.sql.Connection cn() throws java.sql.SQLException {
+
+
     return java.sql.DriverManager.getConnection(strConn , DBusername, DBpassword);
   }
 
@@ -403,5 +405,5 @@
 <%@ page import="custom.SessionInfo" %>
 <%
   SessionInfo.setSessionValues(new Long(Thread.currentThread().getId()), session);
-  SessionInfo.setPolicyFilepath("/Users/pietrodimarco/IdeaProjects/BookStoreGeorge/src/main/webapp/policyBookstoreGeorge.xml");
+  SessionInfo.setPolicyFilepath("/Users/pietrodimarco/IdeaProjects/BookStorePietroMySql/src/main/webapp/policyBookstoreGeorge.xml");
 %>

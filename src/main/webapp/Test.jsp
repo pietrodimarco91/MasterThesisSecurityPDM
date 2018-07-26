@@ -1,4 +1,6 @@
 <%@ page import="java.sql.SQLException" %>
+<%@ page import="custom.OracleInterceptor" %>
+<%@ page import="java.sql.ResultSet" %>
 <%@ include file="Common.jsp" %><%!
     //
 //   Filename: Books.jsp
@@ -72,9 +74,35 @@ TEST
 
         // Build full SQL statement
 
-        sSQL = "SELECT firstname, lastname, A, D, G " +
-                "FROM simple_test " +
-                "WHERE A < B - 3 AND 200 < B AND E > B + 12 AND B < C - 6 AND B < D - 4 AND D < C - 14 AND C >= E - 9 AND C - 11 < 800 AND G < 100" ;
+        sSQL ="SELECT employee.SSN,employee.SALARY from employee " ;
+
+
+        java.sql.ResultSet rs = null;
+        // Open recordset
+        try {
+            rs = openrs(stat, sSQL);
+            System.out.println("ciao");
+            int count=0;
+            while (rs.next())
+                count++;
+            System.out.println(count+" tuples");
+            if ( rs != null ) rs.close();
+        } catch (SQLException e1) {
+            e1.printStackTrace();
+        }
+        /*
+        try {
+
+            ResultSet result=rs.preProcess(sSQL);
+
+            int count=0;
+            while (result.next())
+                count++;
+            System.out.println(count+" tuples");
+            rs.close(result);
+        } catch (SQLException e1) {
+            e1.printStackTrace();
+        }
 
         java.sql.ResultSet rs = null;
         // Open recordset
@@ -87,7 +115,7 @@ TEST
             if ( rs != null ) rs.close();
         } catch (SQLException e1) {
             e1.printStackTrace();
-        }
+        }*/
     }
 
 %>

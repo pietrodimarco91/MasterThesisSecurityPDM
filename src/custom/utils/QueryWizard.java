@@ -1,14 +1,14 @@
 package custom.utils;
 
+import custom.entities.RelationView;
+import custom.enums.Keywords;
+import custom.parser.Parser;
+import net.sf.jsqlparser.JSQLParserException;
+
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
-import net.sf.jsqlparser.JSQLParserException;
-import custom.entities.RelationView;
-import custom.enums.Keywords;
-import custom.parser.Parser;
 
 /**
  * This class is the core of the queries modification.
@@ -28,10 +28,11 @@ public class QueryWizard {
 	ArrayList<RelationView> policyList;
 	ArrayList<String> columns;
 	String tableName;
+	String joinNumber;
 
 	/**
 	 * Construct an object that will modify all the queries of a given table.
-	 * 
+	 *
 	 * @param policyList
 	 *            is the list of policies
 	 * @param tableName
@@ -39,12 +40,13 @@ public class QueryWizard {
 	 * @param columns
 	 *            are the columns associated to the table
 	 */
-	public QueryWizard(List<RelationView> policyList, String tableName, List<String> columns) {
+	public QueryWizard(List<RelationView> policyList, String tableName, List<String> columns,String joinNumber) {
 		/* Sort it and add it to the policies. It's important to sort them
 		 * in the proper way, since the first matching rule is the one that will 
 		 * be taken. */
 		this.policyList = new ArrayList<RelationView>(policyList);
 		Collections.sort(this.policyList, RelationView.RelationViewComparator);
+		this.joinNumber=joinNumber;
 
 		this.tableName = tableName;
 		this.columns = new ArrayList<String>(columns);
@@ -100,16 +102,22 @@ public class QueryWizard {
 	 * @throws ParseException
 	 */
 	private RelationView mergeAllRelations(List<RelationView> sameRolePolicyList) throws JSQLParserException, ParseException {
+
 		List<RelationView> simpleRelationList = new ArrayList<RelationView>();
+		List<RelationView> joinRelationList = new ArrayList<RelationView>();
 		// Only 1 in the current version
 		List<RelationView> aggregateRelationList = new ArrayList<RelationView>();
 		for (RelationView r : sameRolePolicyList) {
-			if (r.getPolicy().toUpperCase().contains("SUM(") || r.getPolicy().toUpperCase().contains("AVG(")
-					|| r.getPolicy().toUpperCase().contains("COUNT(") || r.getPolicy().toUpperCase().contains("MIN(")
-					|| r.getPolicy().toUpperCase().contains("MAX("))
-				aggregateRelationList.add(r);
-			else
-				simpleRelationList.add(r);
+			if (r.getPolicy().toUpperCase().contains("JOIN"))
+				joinRelationList.add(r);
+			else {
+				if (r.getPolicy().toUpperCase().contains("SUM(") || r.getPolicy().toUpperCase().contains("AVG(")
+						|| r.getPolicy().toUpperCase().contains("COUNT(") || r.getPolicy().toUpperCase().contains("MIN(")
+						|| r.getPolicy().toUpperCase().contains("MAX("))
+					aggregateRelationList.add(r);
+				else
+					simpleRelationList.add(r);
+			}
 		}
 
 		// Merge simple rules (if any)
@@ -118,6 +126,10 @@ public class QueryWizard {
 			mergedSimpleView = mergeSimpleRelations(simpleRelationList);
 		}
 
+		RelationView mergedJoinedView = null;
+		if (joinRelationList.size() > 0){
+			mergedJoinedView = mergeJoinedRelation(joinRelationList);
+		}
 
 		// Build aggregate rule (if any)
 		RelationView mergedAggregateView = null;
@@ -135,10 +147,15 @@ public class QueryWizard {
 			result = mergedSimpleView.getPolicy();
 		else if (mergedAggregateView != null)
 			result = mergedAggregateView.getPolicy();
+		else if(mergedJoinedView != null)
+			result = mergedJoinedView.getPolicy();
 
-		return new RelationView(sameRolePolicyList.get(0).getRole(), result, null, MyUtils.getOldestBeginDateToString(sameRolePolicyList),
+
+		return new RelationView(sameRolePolicyList.get(0).getRole(), result, null,sameRolePolicyList.get(0).getJoinTables(), MyUtils.getOldestBeginDateToString(sameRolePolicyList),
 				MyUtils.getOldestExpirationDateToString(sameRolePolicyList));
 	}
+
+
 
 	/*
 	 * ============================================================================================ 
@@ -183,8 +200,9 @@ public class QueryWizard {
 			result += "SELECT ";
 			boolean firstClause = true;
 			List<String> select = rview.getSelectItemsList();
+
 			String where = rview.getWhereCondition();		// in disjunctive normal form
-			String[] conjunctions = where.split(" OR ");  	// get each of the conjunctions separately 
+			String[] conjunctions = where.split(" OR ");  	// get each of the conjunctions separately
 			for (String s: conjunctions) {
 				Parser clause = new Parser(s, select);
 				clause.atomize();
@@ -196,7 +214,7 @@ public class QueryWizard {
 				clause.fix();
 				String caseStmt = clause.getCaseStmt();
 				if (caseStmt.equals(""))
-					caseStmt = "TRUE";
+					caseStmt = "1=1";
 				for (int i = 0; i < numColumns; ++i) {
 					String col = columns.get(i);
 
@@ -205,7 +223,7 @@ public class QueryWizard {
 					// else
 					//	results[i] += ", ";
 					if (clause.isWhereNode(col)) {
-						results[i] += " WHEN " + caseStmt + " THEN " + clause.getFrom(col);
+						results[i] += " WHEN " + caseStmt + " THEN " +clause.getFrom(col);
 					} else if (contain(rview.getSelectItemsList(),col)) {
 						System.out.println("#Current column is in select: " + col);
 						results[i] += " WHEN " + caseStmt + " THEN " + col;
@@ -246,6 +264,137 @@ public class QueryWizard {
 
 		return new RelationView(sameRolePolicyList.get(0).getRole(), result, null, MyUtils.getOldestBeginDateToString(sameRolePolicyList),
 				MyUtils.getOldestExpirationDateToString(sameRolePolicyList));
+	}
+
+
+	private RelationView mergeJoinedRelation(List<RelationView> sameRolePolicyList) throws ParseException, JSQLParserException {
+		int numColumns = columns.size();
+		String[] results = new String[numColumns];
+		String whereNot ="";
+		boolean pkSelected=true;
+		String pk="rowN";
+
+		// For each policy, build the graph
+		boolean firstView = true;
+		String result = "";
+		for (RelationView rview : sameRolePolicyList) {
+			for (int i = 0; i < numColumns; ++i)
+				results[i] = "";
+			if (!firstView) {
+				result += " UNION ";
+			}
+
+			result += "( SELECT ";
+			boolean firstClause = true;
+			List<String> select = rview.getSelectItemsList();
+
+			for (int x=0;x<select.size();x++)
+				if(select.get(x).contains("SUM")||select.get(x).contains("AVG")||select.get(x).contains("COUNT")){
+					select.add(select.get(x).substring(select.get(x).indexOf("(")+1,select.get(x).indexOf(")")));
+				}
+
+			String where = rview.getWhereCondition();		// in disjunctive normal form
+			String[] conjunctions = where.split(" OR ");  	// get each of the conjunctions separately
+			for (String s: conjunctions) {
+				Parser clause = new Parser(s, select);
+				clause.atomize();
+				clause.buildGraph();
+				// before fixing assume that we have checked for negative cycles
+				// using Bellman Ford
+				// and reduced strongly connected components to single points
+				// so result is DAG
+				clause.fix();
+				String caseStmt = clause.getCaseStmt();
+				if (caseStmt.equals(""))
+					caseStmt = "1=1";
+
+				for (int i = 0; i < numColumns; ++i) {
+					String col = columns.get(i);
+
+					if (firstClause)
+						results[i] += " CASE";
+					// else
+					//	results[i] += ", ";
+					if (clause.isWhereNode(col)) {
+						results[i] += " WHEN " + caseStmt + " THEN " + clause.getFrom(col);
+					} else if (contain(select,col)) {
+						System.out.println("#Current column is in select: " + col);
+						results[i] += " WHEN " + caseStmt + " THEN " ;
+						if(rview.getSelectItemsList().contains("AVG("+col+")"))
+							results[i] += "AVG("+getTable(col,tableName.split(" JOIN "),rview)+col+")";
+						else if(rview.getSelectItemsList().contains("COUNT("+col+")"))
+							results[i] += "COUNT("+getTable(col,tableName.split(" JOIN "),rview)+col+")";
+							else if(rview.getSelectItemsList().contains("SUM("+col+")"))
+								results[i] += "SUM("+getTable(col,tableName.split(" JOIN "),rview)+col+")";
+							else results[i] += getTable(col,tableName.split(" JOIN "),rview)+col;
+					} else if (rview.getJoins().get(rview.getJoins().size()-1).contains(col)){
+						pkSelected=false;
+						pk=col;
+						results[i] += " WHEN " + caseStmt + " THEN @curRow"+joinNumber+" := @curRow"+joinNumber+" - 1";
+					}else {
+							results[i] += " WHEN " + caseStmt + " THEN ";
+							results[i] += "NULL";
+						}
+					}
+
+				firstClause = false;
+				firstView = false;
+			}
+			for (int i = 0; i < numColumns; ++i)
+				results[i] += " END AS " + columns.get(i);
+			result += String.join(", ", results);
+			// result = result.substring(0, result.length() - 1); // Remove last comma
+			result += " FROM " + tableName;
+			if(!pkSelected)
+				result+=" JOIN (SELECT @curRow"+joinNumber+" := 0) r ON";
+			else
+				result+=" ON";
+			result+= rview.getJoins().get(0).split("ON")[1];
+
+			// Add the joins
+			result += " WHERE (" + where + whereNot + ")";
+			whereNot += " AND NOT (" + where + ")";
+			if(!rview.getGroupByColumns().isEmpty()){
+				result+=" GROUP BY "+rview.getGroupByColumns().get(0);
+				result+=" ORDER BY "+rview.getGroupByColumns().get(0);
+			}
+			else if(!pkSelected)
+				result+=" ORDER BY employee.ssn";
+			result+=" )";
+
+			firstView = false;
+
+		}
+		/*
+		// Add the where clauses
+		boolean isFirstElement = true;
+		for (RelationView rview : sameRolePolicyList) {
+			String where = rview.getWhereCondition();
+			if (isFirstElement) {
+				isFirstElement = false;
+				result += " WHERE (" + where + ")";
+			} else {
+				result += " OR (" + where + ")";
+			}
+		}
+		*/
+
+		return new RelationView(sameRolePolicyList.get(0).getRole(), result, null, MyUtils.getOldestBeginDateToString(sameRolePolicyList),
+				MyUtils.getOldestExpirationDateToString(sameRolePolicyList));
+
+	}
+
+	private String getTable(String col, String[] split, RelationView rview) {
+		for(int i=0;i<rview.getJoinTables().size();i++){
+			String[] columns=rview.getJoinTables().get(i).getColumns();
+			int length=rview.getJoinTables().get(i).getColumns().length;
+			for(int k=0;k<length;k++)
+				if(columns[k].equals(col))
+					return rview.getJoinTables().get(i).getTableName()+".";
+		}
+
+		return null;
+
 	}
 
 	private boolean contain(List<String> selectItemsList, String col) {
@@ -560,8 +709,8 @@ public class QueryWizard {
 		String where = aggrView.getWhereCondition();
 
 		ArrayList<String> pureSelectItems = new ArrayList<String>();
-		for (String s : selectItems)
-			pureSelectItems.add(s.substring(s.indexOf('(') + 1, s.indexOf(')')));
+		pureSelectItems.add(selectItems.get(0).substring(selectItems.get(0).indexOf('(') + 1, selectItems.get(0).indexOf(')')));
+
 		
 		String result = "SELECT";
 
@@ -608,6 +757,6 @@ public class QueryWizard {
 			result = result.substring(0, result.length() - 1); // Remove last
 																// comma
 
-		return new RelationView(aggrView.getRole(), result, null, aggrView.getBeginDateToString(), aggrView.getExpirationDateToString());
+		return new RelationView(aggrView.getRole(), result, null,  aggrView.getBeginDateToString(), aggrView.getExpirationDateToString());
 	}
 }

@@ -7,7 +7,9 @@ import java.util.Calendar;
 import java.util.Comparator;
 import java.util.List;
 
+import custom.JoinTable;
 import net.sf.jsqlparser.JSQLParserException;
+
 import net.sf.jsqlparser.parser.CCJSqlParserManager;
 import net.sf.jsqlparser.statement.select.Select;
 import custom.enums.Keywords;
@@ -25,6 +27,7 @@ public class RelationView implements Comparable<RelationView> {
 	private String role;
 	private String policy;
 	private String permission;
+	private ArrayList<JoinTable> joinTables;
 	private Calendar beginDate;
 	private Calendar expirationDate;
 
@@ -37,12 +40,21 @@ public class RelationView implements Comparable<RelationView> {
 	 *            is the policy query that will be use to build the view
 	 * @param permission
 	 *            are the permissions on the view
-	 * @param beginDate
-	 * 			  is the begin date of the view
-	 * @param expirationDate
-	 *            is the expiration date of the view
-	 * @throws ParseException 
+	 * @param joinTables
+     *@param beginDate
+     * 			  is the begin date of the view
+     * @param expirationDate
+*            is the expiration date of the view   @throws ParseException
 	 */
+	public RelationView(String role, String view, String permission, ArrayList<JoinTable> joinTables, String beginDate, String expirationDate) throws ParseException {
+		this.role = role;
+		this.policy = view;
+		this.permission = permission;
+		this.joinTables=joinTables;
+		this.beginDate = MyUtils.getDateFromString(beginDate);
+		this.expirationDate = MyUtils.getDateFromString(expirationDate);
+	}
+
 	public RelationView(String role, String view, String permission, String beginDate, String expirationDate) throws ParseException {
 		this.role = role;
 		this.policy = view;
@@ -87,7 +99,27 @@ public class RelationView implements Comparable<RelationView> {
 	public List<String> getSelectItemsList() throws JSQLParserException{
 		CCJSqlParserManager parserManager = new CCJSqlParserManager();
 		QueryFiledsFinder queryFieldsFinder = new QueryFiledsFinder();
-		Select query = (Select) parserManager.parse(new StringReader(this.policy));
+		ArrayList<String> modifiedPolicies;
+		String result="";
+
+		String modifiedPolicy=this.policy;
+		while(modifiedPolicy.contains("UNION")){
+			if(modifiedPolicy.contains("@")){
+				result+=modifiedPolicy.substring(0,modifiedPolicy.indexOf("@")-1)+" 0 "+modifiedPolicy.substring(modifiedPolicy.indexOf("END"),modifiedPolicy.indexOf("JOIN (")-1)+modifiedPolicy.substring(modifiedPolicy.indexOf(" ON"),modifiedPolicy.indexOf("UNION")+5);
+			}else{
+				result+=modifiedPolicy.substring(0,modifiedPolicy.indexOf("UNION")+5);
+			}
+			modifiedPolicy=modifiedPolicy.substring(modifiedPolicy.indexOf("UNION")+5,modifiedPolicy.length());
+		}
+		if(modifiedPolicy.contains("@")){
+			result+=modifiedPolicy.substring(0,modifiedPolicy.indexOf("@")-1)+" 0 "+modifiedPolicy.substring(modifiedPolicy.indexOf("END"),modifiedPolicy.indexOf("JOIN (")-1)+modifiedPolicy.substring(modifiedPolicy.indexOf(" ON"),modifiedPolicy.length());
+		}else{
+			result+=modifiedPolicy.substring(0,modifiedPolicy.length());
+		}
+
+
+		Select query = (Select) parserManager.parse(new StringReader(result));
+
 		return new ArrayList<String>(queryFieldsFinder.getSelectItemList(query));
 	}
 	
@@ -148,4 +180,7 @@ public class RelationView implements Comparable<RelationView> {
 		}
 	};
 
+	public ArrayList<JoinTable> getJoinTables() {
+		return joinTables;
+	}
 }

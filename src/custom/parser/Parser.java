@@ -226,7 +226,7 @@ public class Parser {
   {
     // String columns[] = {"item_id", "first_name", "last_name", "A", "B", "C", "D", "E", "F", "G"};
     List<String> select = Arrays.asList("first_name", "last_name", "A");  // in select
-    Parser clause = new Parser("200 < B + 5 AND A < B", select);
+    Parser clause = new Parser("200 < B + 5 AND A < B AND C < B", select);
     System.out.println("============Parse Test===============");
     clause.printSelect();
     System.out.println("=========atomize========");

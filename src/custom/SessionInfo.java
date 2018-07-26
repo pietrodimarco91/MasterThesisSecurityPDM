@@ -128,45 +128,55 @@ public class SessionInfo {
 				// Store the current table
 				Element table = (Element) tables.item(i);
 				String tableName = table.getAttribute(Keywords.TABLE_NAME.toString());
+
+				String[] parts = tableName.split(" JOIN ");
 				System.out.println("		- Table Name: " + tableName);
 
-				// Get the columns and place them into a List
-				String columnsString = table.getElementsByTagName(Keywords.TABLE_COLUMNS.toString()).item(0).getTextContent();
-				List<String> columns = new ArrayList<String>(Arrays.asList(columnsString.split(Keywords.VALUES_SEPARATOR.toString())));
+				for (int k=0;k<parts.length;k++) {
+					// Get the columns and place them into a List
+					String columnsString = table.getElementsByTagName(Keywords.TABLE_COLUMNS.toString()).item(0).getTextContent();
+					List<String> columns = new ArrayList<String>(Arrays.asList(columnsString.split(Keywords.VALUES_SEPARATOR.toString())));
 
-				// Get the list of all the table policies, and prepare the
-				// arrayList to store them
-				NodeList relationViews = table.getElementsByTagName(Keywords.RELATION_VIEW.toString());
-				ArrayList<RelationView> policyList = new ArrayList<RelationView>();
-
-				// For each policy of this table
-				for (int j = 0; j < relationViews.getLength(); j++) {
-
-					// Store the current policy
-					Element rView = (Element) relationViews.item(j);
-
-					// TODO: add permissions
-
-					// Get dates
-					String beginDate = rView.getElementsByTagName(Keywords.BEGIN_DATE.toString()).item(0).getTextContent();
-					String endDate = rView.getElementsByTagName(Keywords.EXPIRATION_DATE.toString()).item(0).getTextContent();
-
-					// Update the time of the next update
-					nextUpdate = updateNextUpdate(beginDate, endDate);
-
-					// Store the policy only if it is active in this moment
-					if (policyIsActive(beginDate, endDate)) {
-						// Fill the relation view with user role and policy
-						String userRole = rView.getElementsByTagName(Keywords.USER_ROLE.toString()).item(0).getTextContent();
-						String policyRule = rView.getElementsByTagName(Keywords.POLICY.toString()).item(0).getTextContent();
-
-						policyList.add(new RelationView(userRole, policyRule, null, beginDate, endDate));
-						System.out.println("			- From " + beginDate + " To " + endDate + " - Role " + userRole + " - Policy: " + policyRule);
+					//Pietro implement JOIN
+					ArrayList<JoinTable> joinTables = new ArrayList<JoinTable>();
+					for (int j = 0; j < table.getElementsByTagName(Keywords.TABLE_COLUMNS_JOIN.toString()).getLength(); j++) {
+						joinTables.add(new JoinTable(table.getElementsByTagName(Keywords.TABLE_COLUMNS_JOIN.toString()).item(j).getAttributes().getNamedItem("table").getTextContent(), table.getElementsByTagName(Keywords.TABLE_COLUMNS_JOIN.toString()).item(j).getTextContent().split(Keywords.VALUES_SEPARATOR.toString())));
 					}
-				}
 
-				QueryWizard queryWizard = new QueryWizard(policyList, tableName, columns);
-				policies.put(tableName, queryWizard.getModifiedRelations());
+					// Get the list of all the table policies, and prepare the
+					// arrayList to store them
+					NodeList relationViews = table.getElementsByTagName(Keywords.RELATION_VIEW.toString());
+					ArrayList<RelationView> policyList = new ArrayList<RelationView>();
+
+					// For each policy of this table
+					for (int j = 0; j < relationViews.getLength(); j++) {
+
+						// Store the current policy
+						Element rView = (Element) relationViews.item(j);
+
+						// TODO: add permissions
+
+						// Get dates
+						String beginDate = rView.getElementsByTagName(Keywords.BEGIN_DATE.toString()).item(0).getTextContent();
+						String endDate = rView.getElementsByTagName(Keywords.EXPIRATION_DATE.toString()).item(0).getTextContent();
+
+						// Update the time of the next update
+						nextUpdate = updateNextUpdate(beginDate, endDate);
+
+						// Store the policy only if it is active in this moment
+						if (policyIsActive(beginDate, endDate)) {
+							// Fill the relation view with user role and policy
+							String userRole = rView.getElementsByTagName(Keywords.USER_ROLE.toString()).item(0).getTextContent();
+							String policyRule = rView.getElementsByTagName(Keywords.POLICY.toString()).item(0).getTextContent();
+
+							policyList.add(new RelationView(userRole, policyRule, null, joinTables, beginDate, endDate));
+							System.out.println("			- From " + beginDate + " To " + endDate + " - Role " + userRole + " - Policy: " + policyRule + "\n Tables:" + joinTables);
+						}
+					}
+
+					QueryWizard queryWizard = new QueryWizard(policyList, tableName, columns,String.valueOf(k));
+					policies.put(parts[k], queryWizard.getModifiedRelations());
+				}
 			}
 
 			printStoredPolicies(policies);

@@ -4,30 +4,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import net.sf.jsqlparser.expression.AllComparisonExpression;
-import net.sf.jsqlparser.expression.AnalyticExpression;
-import net.sf.jsqlparser.expression.AnyComparisonExpression;
-import net.sf.jsqlparser.expression.BinaryExpression;
-import net.sf.jsqlparser.expression.CaseExpression;
-import net.sf.jsqlparser.expression.CastExpression;
-import net.sf.jsqlparser.expression.DateValue;
-import net.sf.jsqlparser.expression.DoubleValue;
-import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.expression.ExpressionVisitor;
-import net.sf.jsqlparser.expression.ExtractExpression;
-import net.sf.jsqlparser.expression.Function;
-import net.sf.jsqlparser.expression.IntervalExpression;
-import net.sf.jsqlparser.expression.JdbcNamedParameter;
-import net.sf.jsqlparser.expression.JdbcParameter;
-import net.sf.jsqlparser.expression.LongValue;
-import net.sf.jsqlparser.expression.NullValue;
-import net.sf.jsqlparser.expression.OracleHierarchicalExpression;
-import net.sf.jsqlparser.expression.Parenthesis;
-import net.sf.jsqlparser.expression.SignedExpression;
-import net.sf.jsqlparser.expression.StringValue;
-import net.sf.jsqlparser.expression.TimeValue;
-import net.sf.jsqlparser.expression.TimestampValue;
-import net.sf.jsqlparser.expression.WhenClause;
+import net.sf.jsqlparser.expression.*;
 import net.sf.jsqlparser.expression.operators.arithmetic.Addition;
 import net.sf.jsqlparser.expression.operators.arithmetic.BitwiseAnd;
 import net.sf.jsqlparser.expression.operators.arithmetic.BitwiseOr;
@@ -39,36 +16,11 @@ import net.sf.jsqlparser.expression.operators.arithmetic.Multiplication;
 import net.sf.jsqlparser.expression.operators.arithmetic.Subtraction;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.expression.operators.conditional.OrExpression;
-import net.sf.jsqlparser.expression.operators.relational.Between;
-import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
-import net.sf.jsqlparser.expression.operators.relational.ExistsExpression;
-import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
-import net.sf.jsqlparser.expression.operators.relational.GreaterThan;
-import net.sf.jsqlparser.expression.operators.relational.GreaterThanEquals;
-import net.sf.jsqlparser.expression.operators.relational.InExpression;
-import net.sf.jsqlparser.expression.operators.relational.IsNullExpression;
-import net.sf.jsqlparser.expression.operators.relational.ItemsListVisitor;
-import net.sf.jsqlparser.expression.operators.relational.LikeExpression;
-import net.sf.jsqlparser.expression.operators.relational.Matches;
-import net.sf.jsqlparser.expression.operators.relational.MinorThan;
-import net.sf.jsqlparser.expression.operators.relational.MinorThanEquals;
-import net.sf.jsqlparser.expression.operators.relational.MultiExpressionList;
-import net.sf.jsqlparser.expression.operators.relational.NotEqualsTo;
-import net.sf.jsqlparser.expression.operators.relational.RegExpMatchOperator;
+import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
-import net.sf.jsqlparser.statement.select.FromItemVisitor;
-import net.sf.jsqlparser.statement.select.Join;
-import net.sf.jsqlparser.statement.select.LateralSubSelect;
-import net.sf.jsqlparser.statement.select.PlainSelect;
-import net.sf.jsqlparser.statement.select.Select;
-import net.sf.jsqlparser.statement.select.SelectItem;
-import net.sf.jsqlparser.statement.select.SelectVisitor;
-import net.sf.jsqlparser.statement.select.SetOperationList;
-import net.sf.jsqlparser.statement.select.SubJoin;
-import net.sf.jsqlparser.statement.select.SubSelect;
-import net.sf.jsqlparser.statement.select.ValuesList;
-import net.sf.jsqlparser.statement.select.WithItem;
+import net.sf.jsqlparser.statement.select.*;
+
 
 /**
  * This class is used to extract interesting parts of a query
@@ -276,6 +228,12 @@ public class QueryFiledsFinder implements SelectVisitor, FromItemVisitor, Expres
 	}
 
 	@Override
+	public void visit(HexValue hexValue) {
+
+	}
+
+
+	@Override
 	public void visit(MinorThan minorThan) {
 		visitBinaryExpression(minorThan);
 	}
@@ -401,9 +359,14 @@ public class QueryFiledsFinder implements SelectVisitor, FromItemVisitor, Expres
 	}
 
 	@Override
+	public void visit(WithinGroupExpression withinGroupExpression) {
+
+	}
+
+	@Override
 	public void visit(SetOperationList list) {
-		for (PlainSelect plainSelect : list.getPlainSelects()) {
-			visit(plainSelect);
+		for (SelectBody plainSelect : list.getSelects()) {
+			visit((PlainSelect) plainSelect);
 		}
 	}
 
@@ -428,6 +391,11 @@ public class QueryFiledsFinder implements SelectVisitor, FromItemVisitor, Expres
 	}
 
 	@Override
+	public void visit(TableFunction tableFunction) {
+
+	}
+
+	@Override
 	public void visit(IntervalExpression iexpr) {
 	}
 
@@ -443,4 +411,66 @@ public class QueryFiledsFinder implements SelectVisitor, FromItemVisitor, Expres
 	public void visit(RegExpMatchOperator rexpr) {
 		visitBinaryExpression(rexpr);
 	}
+
+	@Override
+	public void visit(JsonExpression jsonExpression) {
+
+	}
+
+	@Override
+	public void visit(JsonOperator jsonOperator) {
+
+	}
+
+	@Override
+	public void visit(RegExpMySQLOperator regExpMySQLOperator) {
+
+	}
+
+	@Override
+	public void visit(UserVariable userVariable) {
+
+	}
+
+	@Override
+	public void visit(NumericBind numericBind) {
+
+	}
+
+	@Override
+	public void visit(KeepExpression keepExpression) {
+
+	}
+
+	@Override
+	public void visit(MySQLGroupConcat mySQLGroupConcat) {
+
+	}
+
+	@Override
+	public void visit(RowConstructor rowConstructor) {
+
+	}
+
+	@Override
+	public void visit(OracleHint oracleHint) {
+
+	}
+
+	@Override
+	public void visit(TimeKeyExpression timeKeyExpression) {
+
+	}
+
+	@Override
+	public void visit(DateTimeLiteralExpression dateTimeLiteralExpression) {
+
+	}
+
+	@Override
+	public void visit(NotExpression notExpression) {
+
+	}
+
+
 }

@@ -32,6 +32,7 @@ public enum Keywords {
 	TABLE_COLUMNS("columns"),
 	RELATION_VIEW("relation_view"),
 	USER_ROLE("user_role"),
+	TABLE_COLUMNS_JOIN("columns_join"),
 	BEGIN_DATE("begin_date"),
 	EXPIRATION_DATE("expiration"),
 	PERMISSION("permission"),
